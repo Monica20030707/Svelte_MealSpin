@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build / output
+dist/
+build/
+.next/
+out/
+
+# Caches
+*.tsbuildinfo
+.cache/
+coverage/
+.nyc_output/
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Runtime data
+data/blacklist.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Dev Genie
+dev-genie-review.json

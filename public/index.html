@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Meal Spin — spin the food roulette for a nearby lunch or dinner spot." />
+  <title>Meal Spin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="bg-atmosphere" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="brand">
+      <p class="brand-mark">Meal Spin</p>
+      <h1 class="tagline">Spin for lunch nearby</h1>
+      <p class="lede">Pick a radius, spin the roulette, then open Maps — or ban it and spin again.</p>
+    </header>
+
+    <section class="controls" aria-label="Location and spin controls">
+      <div class="field-row">
+        <label for="radius">Radius</label>
+        <select id="radius" name="radius">
+          <option value="5">5 miles</option>
+          <option value="10" selected>10 miles</option>
+          <option value="15">15 miles</option>
+          <option value="25">25 miles</option>
+        </select>
+      </div>
+
+      <div class="location-block">
+        <button type="button" id="locate-btn" class="btn btn-secondary">Use my location</button>
+        <p id="location-status" class="status" role="status">Location not set yet.</p>
+        <details class="manual-loc">
+          <summary>Enter coordinates manually</summary>
+          <div class="manual-fields">
+            <label>
+              Latitude
+              <input id="lat-input" type="number" step="any" placeholder="37.7749" inputmode="decimal" />
+            </label>
+            <label>
+              Longitude
+              <input id="lng-input" type="number" step="any" placeholder="-122.4194" inputmode="decimal" />
+            </label>
+            <button type="button" id="manual-loc-btn" class="btn btn-secondary">Set location</button>
+          </div>
+        </details>
+      </div>
+
+      <button type="button" id="spin-btn" class="btn btn-primary" disabled>
+        <span class="spin-icon" aria-hidden="true"></span>
+        Spin
+      </button>
+    </section>
+
+    <p id="error-msg" class="error" hidden role="alert"></p>
+
+    <section id="result" class="result" hidden aria-live="polite">
+      <article class="result-card">
+        <div class="result-media" id="result-media" hidden>
+          <img id="result-image" alt="" />
+        </div>
+        <div class="result-body">
+          <p class="result-cuisine" id="result-cuisine"></p>
+          <h2 class="result-name" id="result-name"></h2>
+          <div class="result-meta">
+            <span id="result-rating" class="meta-pill"></span>
+            <span id="result-distance" class="meta-pill"></span>
+            <span id="result-price" class="meta-pill" hidden></span>
+          </div>
+          <p class="result-address" id="result-address"></p>
+          <div class="result-actions">
+            <a id="maps-google" class="btn btn-maps" href="#" target="_blank" rel="noopener noreferrer">Google Maps</a>
+            <a id="maps-apple" class="btn btn-maps" href="#" target="_blank" rel="noopener noreferrer">Apple Maps</a>
+            <button type="button" id="ban-btn" class="btn btn-danger">Don’t recommend again</button>
+          </div>
+          <a id="yelp-link" class="yelp-link" href="#" target="_blank" rel="noopener noreferrer">View on Yelp</a>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

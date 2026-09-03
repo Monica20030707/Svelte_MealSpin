@@ -1,0 +1,16 @@
+{
+  "name": "meal-spin",
+  "version": "1.0.0",
+  "description": "Spin the Yelp roulette for a nearby lunch or dinner spot",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
