@@ -1,26 +1,26 @@
 # Meal Spin
 
-Responsive food roulette that uses your location and the Yelp Fusion API to pick a nearby restaurant.
+Responsive food roulette that uses your location and OpenStreetMap (Overpass API) to pick a nearby restaurant. No API key required.
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env   # then set YELP_API_KEY
+cp .env.example .env   # optional; PORT and Overpass URL overrides only
 ```
 
 ## Run
 
 ```bash
-export YELP_API_KEY=your_key   # or use a .env loader of your choice
 npm start
 ```
 
-Open `http://localhost:8080`. The app shell loads even without a Yelp key; spins return `503` until `YELP_API_KEY` is set.
+Open `http://localhost:8080`. Spins query Overpass for restaurants, cafes, and fast food near the given coordinates.
 
 ## Scripts
 
-| Command     | Description              |
-|-------------|--------------------------|
-| `npm start` | Start Express on PORT    |
-| `npm test`  | Run Node built-in tests  |
+| Command        | Description                                      |
+|----------------|--------------------------------------------------|
+| `npm start`    | Start Express on PORT                            |
+| `npm run dev`  | Start Express and reload when `server.js` changes |
+| `npm test`     | Run Node built-in tests                          |

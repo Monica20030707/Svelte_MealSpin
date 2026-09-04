@@ -24,7 +24,7 @@
     mapsGoogle: document.getElementById("maps-google"),
     mapsApple: document.getElementById("maps-apple"),
     banBtn: document.getElementById("ban-btn"),
-    yelpLink: document.getElementById("yelp-link"),
+    placeLink: document.getElementById("place-link"),
   };
 
   /** @type {{ lat: number, lng: number } | null} */
@@ -143,7 +143,13 @@
       Array.isArray(biz.categories) && biz.categories.length
         ? biz.categories.slice(0, 3).join(" · ")
         : "Restaurant";
-    els.resultRating.textContent = formatRating(biz.rating, biz.reviewCount);
+    if (biz.rating != null) {
+      els.resultRating.hidden = false;
+      els.resultRating.textContent = formatRating(biz.rating, biz.reviewCount);
+    } else {
+      els.resultRating.hidden = true;
+      els.resultRating.textContent = "";
+    }
     els.resultDistance.textContent = formatDistance(biz.distance);
     els.resultAddress.textContent = biz.address || "Address unavailable";
 
@@ -174,10 +180,10 @@
     }
 
     if (biz.url) {
-      els.yelpLink.hidden = false;
-      els.yelpLink.href = biz.url;
+      els.placeLink.hidden = false;
+      els.placeLink.href = biz.url;
     } else {
-      els.yelpLink.hidden = true;
+      els.placeLink.hidden = true;
     }
   }
 

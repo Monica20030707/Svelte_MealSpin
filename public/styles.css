@@ -362,14 +362,14 @@ input:focus {
   margin-top: 0.35rem;
 }
 
-.yelp-link {
+.place-link {
   font-size: 0.85rem;
   color: var(--ink-muted);
   text-align: center;
   margin-top: 0.15rem;
 }
 
-.yelp-link:hover {
+.place-link:hover {
   color: var(--accent-deep);
 }
 

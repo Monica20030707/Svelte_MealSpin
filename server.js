@@ -5,20 +5,162 @@ const fs = require("fs");
 const path = require("path");
 
 const PORT = Number(process.env.PORT) || 8080;
-const YELP_SEARCH_URL = "https://api.yelp.com/v3/businesses/search";
+const OVERPASS_URL =
+  process.env.OVERPASS_URL || "https://overpass-api.de/api/interpreter";
+const USER_AGENT = process.env.OVERPASS_USER_AGENT || "MealSpin/1.0 (lunch roulette)";
 const MAX_RADIUS_METERS = 40000;
+const SEARCH_CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_POOL_SIZE = 80;
 const DATA_DIR = path.join(__dirname, "data");
 const BLACKLIST_FILE = path.join(DATA_DIR, "blacklist.json");
 
-function getYelpApiKey() {
-  return process.env.YELP_API_KEY || "";
-}
+/** @type {Map<string, { expires: number, places: object[] }>} */
+const searchCache = new Map();
 
 /** @type {Map<string, Set<string>>} */
 const blacklistBySession = new Map();
 
 function milesToMeters(miles) {
   return Math.min(Math.round(Number(miles) * 1609.344), MAX_RADIUS_METERS);
+}
+
+function haversineMeters(lat1, lon1, lat2, lon2) {
+  const earthMeters = 6371000;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * earthMeters * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function titleCaseCuisine(value) {
+  return value
+    .split(/[_-]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function parseCuisineTags(raw) {
+  if (!raw || typeof raw !== "string") return [];
+  return raw
+    .split(/[;,]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(titleCaseCuisine);
+}
+
+function amenityLabel(amenity) {
+  if (amenity === "fast_food") return "Fast food";
+  if (amenity === "cafe") return "Cafe";
+  return "Restaurant";
+}
+
+function elementCoords(element) {
+  const lat = element.lat ?? element.center?.lat;
+  const lng = element.lon ?? element.center?.lon;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+function formatAddress(tags) {
+  const line1 = [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" ");
+  const parts = [
+    line1,
+    tags["addr:city"],
+    tags["addr:state"],
+    tags["addr:postcode"],
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
+function formatPlace(element, originLat, originLng) {
+  const tags = element.tags && typeof element.tags === "object" ? element.tags : {};
+  const coords = elementCoords(element);
+  const categories = parseCuisineTags(tags.cuisine);
+  if (categories.length === 0 && tags.amenity) {
+    categories.push(amenityLabel(tags.amenity));
+  }
+
+  const distance =
+    coords && Number.isFinite(originLat) && Number.isFinite(originLng)
+      ? haversineMeters(originLat, originLng, coords.lat, coords.lng)
+      : null;
+
+  return {
+    id: `${element.type}/${element.id}`,
+    name: tags.name || "Unnamed place",
+    rating: null,
+    categories,
+    distance,
+    address: formatAddress(tags),
+    lat: coords ? coords.lat : null,
+    lng: coords ? coords.lng : null,
+    url: tags.website || tags["contact:website"] || "",
+    imageUrl: "",
+    reviewCount: null,
+    price: "",
+  };
+}
+
+function buildOverpassQuery(lat, lng, radiusMeters) {
+  return `[out:json][timeout:25];
+(
+  nwr["amenity"="restaurant"](around:${radiusMeters},${lat},${lng});
+  nwr["amenity"="fast_food"](around:${radiusMeters},${lat},${lng});
+  nwr["amenity"="cafe"](around:${radiusMeters},${lat},${lng});
+);
+out center;`;
+}
+
+function shuffleInPlace(items) {
+  for (let i = items.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
+function cacheKey(lat, lng, radiusMeters) {
+  return `${lat.toFixed(3)}:${lng.toFixed(3)}:${radiusMeters}`;
+}
+
+async function searchOverpass(lat, lng, radiusMeters) {
+  const key = cacheKey(lat, lng, radiusMeters);
+  const cached = searchCache.get(key);
+  if (cached && cached.expires > Date.now()) {
+    return cached.places;
+  }
+
+  const query = buildOverpassQuery(lat, lng, radiusMeters);
+  const response = await fetch(OVERPASS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      Accept: "application/json",
+      "User-Agent": USER_AGENT,
+    },
+    body: new URLSearchParams({ data: query }).toString(),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    const error = new Error(`Overpass API error (${response.status})`);
+    error.status = response.status;
+    error.detail = text;
+    throw error;
+  }
+
+  const data = await response.json();
+  const elements = Array.isArray(data.elements) ? data.elements : [];
+  const named = elements.filter((el) => el && el.tags && el.tags.name && elementCoords(el));
+  shuffleInPlace(named);
+  const places = named.slice(0, MAX_POOL_SIZE).map((el) => formatPlace(el, lat, lng));
+
+  searchCache.set(key, { expires: Date.now() + SEARCH_CACHE_TTL_MS, places });
+  return places;
 }
 
 function loadBlacklistFromDisk() {
@@ -68,63 +210,6 @@ function getBlacklist(sessionId) {
   return blacklistBySession.get(sessionId);
 }
 
-function formatBusiness(business) {
-  const categories = Array.isArray(business.categories)
-    ? business.categories.map((c) => c.title).filter(Boolean)
-    : [];
-  const location = business.location || {};
-  const addressParts = [
-    location.address1,
-    location.city,
-    location.state,
-    location.zip_code,
-  ].filter(Boolean);
-
-  return {
-    id: business.id,
-    name: business.name,
-    rating: business.rating ?? null,
-    categories,
-    distance: typeof business.distance === "number" ? business.distance : null,
-    address: addressParts.join(", ") || location.display_address?.join(", ") || "",
-    lat: business.coordinates?.latitude ?? null,
-    lng: business.coordinates?.longitude ?? null,
-    url: business.url || "",
-    imageUrl: business.image_url || "",
-    reviewCount: business.review_count ?? null,
-    price: business.price || "",
-  };
-}
-
-async function searchYelp(lat, lng, radiusMeters) {
-  const params = new URLSearchParams({
-    term: "restaurants",
-    latitude: String(lat),
-    longitude: String(lng),
-    radius: String(radiusMeters),
-    limit: "50",
-    open_now: "false",
-  });
-
-  const response = await fetch(`${YELP_SEARCH_URL}?${params}`, {
-    headers: {
-      Authorization: `Bearer ${getYelpApiKey()}`,
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    const error = new Error(`Yelp API error (${response.status})`);
-    error.status = response.status;
-    error.detail = text;
-    throw error;
-  }
-
-  const data = await response.json();
-  return Array.isArray(data.businesses) ? data.businesses : [];
-}
-
 loadBlacklistFromDisk();
 
 const app = express();
@@ -160,19 +245,13 @@ app.get("/api/spin", async (req, res) => {
     });
   }
 
-  if (!getYelpApiKey()) {
-    return res.status(503).json({
-      error: "YELP_API_KEY is not configured. Set it in the environment to enable spins.",
-    });
-  }
-
   const sessionId = getSessionId(req);
   const banned = getBlacklist(sessionId);
   const radiusMeters = milesToMeters(radiusMiles);
 
   try {
-    const businesses = await searchYelp(lat, lng, radiusMeters);
-    const eligible = businesses.filter((b) => b && b.id && !banned.has(b.id));
+    const places = await searchOverpass(lat, lng, radiusMeters);
+    const eligible = places.filter((p) => p && p.id && !banned.has(p.id));
 
     if (eligible.length === 0) {
       return res.status(404).json({
@@ -185,11 +264,11 @@ app.get("/api/spin", async (req, res) => {
     }
 
     const pick = eligible[Math.floor(Math.random() * eligible.length)];
-    return res.json(formatBusiness(pick));
+    return res.json(pick);
   } catch (err) {
     console.error("Spin failed:", err.message, err.detail || "");
     return res.status(502).json({
-      error: "Could not reach Yelp Fusion. Check your API key and try again.",
+      error: "Could not reach OpenStreetMap Overpass. Try again in a moment.",
     });
   }
 });
@@ -221,7 +300,9 @@ if (require.main === module) {
 module.exports = {
   app,
   milesToMeters,
-  formatBusiness,
+  haversineMeters,
+  formatPlace,
+  buildOverpassQuery,
   getBlacklist,
   blacklistBySession,
   loadBlacklistFromDisk,
