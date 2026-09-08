@@ -4,6 +4,36 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 
+function loadEnvFiles() {
+  const parsed = {};
+  for (const name of [".env", ".env.local"]) {
+    const filePath = path.join(__dirname, name);
+    if (!fs.existsSync(filePath)) continue;
+    for (const rawLine of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) continue;
+      const eq = line.indexOf("=");
+      if (eq < 1) continue;
+      const key = line.slice(0, eq).trim();
+      let value = line.slice(eq + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      parsed[key] = value;
+    }
+  }
+  for (const [key, value] of Object.entries(parsed)) {
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadEnvFiles();
+
 const PORT = Number(process.env.PORT) || 8080;
 const OVERPASS_URL =
   process.env.OVERPASS_URL || "https://overpass-api.de/api/interpreter";
@@ -11,8 +41,25 @@ const USER_AGENT = process.env.OVERPASS_USER_AGENT || "MealSpin/1.0 (lunch roule
 const MAX_RADIUS_METERS = 40000;
 const SEARCH_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_POOL_SIZE = 80;
-const DATA_DIR = path.join(__dirname, "data");
-const BLACKLIST_FILE = path.join(DATA_DIR, "blacklist.json");
+
+const VENUE_IDS = ["restaurant", "cafe", "fast_food"];
+const FOOD_ALIASES = {
+  pizza: ["pizza"],
+  sushi: ["sushi", "sashimi"],
+  mexican: ["mexican", "tex-mex", "taco", "tacos"],
+  vietnamese: ["vietnamese", "pho"],
+  chinese: ["chinese"],
+  thai: ["thai"],
+  indian: ["indian"],
+  korean: ["korean"],
+  japanese: ["japanese", "ramen"],
+  italian: ["italian", "pasta"],
+  burgers: ["burger", "burgers"],
+  sandwiches: ["sandwich", "sandwiches"],
+  seafood: ["seafood", "fish"],
+};
+const FOOD_IDS = Object.keys(FOOD_ALIASES);
+const ALL_CATEGORY_IDS = [...VENUE_IDS, ...FOOD_IDS];
 
 /** @type {Map<string, { expires: number, places: object[] }>} */
 const searchCache = new Map();
@@ -76,6 +123,36 @@ function formatAddress(tags) {
   return parts.join(", ");
 }
 
+function firstHttpUrl(value) {
+  if (typeof value !== "string") return "";
+  const first = value.split(/[;\n]/)[0].trim();
+  try {
+    const parsed = new URL(first);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.toString();
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function wikimediaFileUrl(value) {
+  if (typeof value !== "string") return "";
+  const first = value.split(/[;\n]/)[0].trim();
+  if (!first || /^Category:/i.test(first)) return "";
+  const filename = first.replace(/^(?:File|Image):/i, "").trim();
+  if (!filename || !/\.(jpe?g|png|gif|webp|svg)$/i.test(filename)) return "";
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}?width=400`;
+}
+
+function osmImageUrl(tags) {
+  return (
+    firstHttpUrl(tags.image) ||
+    firstHttpUrl(tags["image:0"]) ||
+    wikimediaFileUrl(tags.wikimedia_commons) ||
+    ""
+  );
+}
+
 function formatPlace(element, originLat, originLng) {
   const tags = element.tags && typeof element.tags === "object" ? element.tags : {};
   const coords = elementCoords(element);
@@ -99,18 +176,87 @@ function formatPlace(element, originLat, originLng) {
     lat: coords ? coords.lat : null,
     lng: coords ? coords.lng : null,
     url: tags.website || tags["contact:website"] || "",
-    imageUrl: "",
+    imageUrl: osmImageUrl(tags),
     reviewCount: null,
     price: "",
   };
 }
 
-function buildOverpassQuery(lat, lng, radiusMeters) {
+function parseCategoryParam(raw) {
+  const all = {
+    venues: new Set(VENUE_IDS),
+    foods: new Set(FOOD_IDS),
+    allVenues: true,
+    allFoods: true,
+    empty: false,
+  };
+
+  if (raw == null || String(raw).trim() === "") return all;
+
+  const requested = new Set(
+    String(raw)
+      .split(",")
+      .map((s) => s.trim())
+      .filter((id) => ALL_CATEGORY_IDS.includes(id))
+  );
+  const venues = VENUE_IDS.filter((id) => requested.has(id));
+  const foods = FOOD_IDS.filter((id) => requested.has(id));
+
+  if (venues.length === 0 && foods.length === 0) {
+    return { venues: new Set(), foods: new Set(), allVenues: false, allFoods: false, empty: true };
+  }
+
+  const effectiveVenues = venues.length > 0 ? venues : VENUE_IDS;
+  return {
+    venues: new Set(effectiveVenues),
+    foods: new Set(foods.length > 0 ? foods : FOOD_IDS),
+    allVenues: effectiveVenues.length === VENUE_IDS.length && venues.length > 0,
+    allFoods: foods.length === 0 || foods.length === FOOD_IDS.length,
+    empty: false,
+  };
+}
+
+function cuisineMatchesFoods(rawCuisine, foodIds) {
+  if (!rawCuisine || typeof rawCuisine !== "string") return false;
+  const lower = rawCuisine.toLowerCase();
+  for (const id of foodIds) {
+    const aliases = FOOD_ALIASES[id] || [];
+    for (const alias of aliases) {
+      if (lower.includes(alias)) return true;
+    }
+  }
+  return false;
+}
+
+function cuisineRegex(foodIds) {
+  const aliases = [];
+  for (const id of foodIds) {
+    for (const alias of FOOD_ALIASES[id] || []) {
+      aliases.push(alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    }
+  }
+  return [...new Set(aliases)].join("|");
+}
+
+function elementMatchesSelection(element, selection) {
+  const tags = element.tags && typeof element.tags === "object" ? element.tags : {};
+  if (!selection.venues.has(tags.amenity)) return false;
+  if (selection.allFoods) return true;
+  return cuisineMatchesFoods(tags.cuisine, selection.foods);
+}
+
+function buildOverpassQuery(lat, lng, radiusMeters, selection) {
+  const chosen = selection || parseCategoryParam("");
+  const amenities = VENUE_IDS.filter((id) => chosen.venues.has(id));
+  const cuisineFilter =
+    chosen.allFoods || chosen.foods.size === 0
+      ? ""
+      : `["cuisine"~"${cuisineRegex(chosen.foods)}",i]`;
+  const around = `(around:${radiusMeters},${lat},${lng})`;
+  const lines = amenities.map((amenity) => `  nwr["amenity"="${amenity}"]${cuisineFilter}${around};`);
   return `[out:json][timeout:25];
 (
-  nwr["amenity"="restaurant"](around:${radiusMeters},${lat},${lng});
-  nwr["amenity"="fast_food"](around:${radiusMeters},${lat},${lng});
-  nwr["amenity"="cafe"](around:${radiusMeters},${lat},${lng});
+${lines.join("\n")}
 );
 out center;`;
 }
@@ -123,18 +269,20 @@ function shuffleInPlace(items) {
   return items;
 }
 
-function cacheKey(lat, lng, radiusMeters) {
-  return `${lat.toFixed(3)}:${lng.toFixed(3)}:${radiusMeters}`;
+function cacheKey(lat, lng, radiusMeters, selection) {
+  const venues = [...selection.venues].sort().join("+");
+  const foods = selection.allFoods ? "*" : [...selection.foods].sort().join("+");
+  return `${lat.toFixed(3)}:${lng.toFixed(3)}:${radiusMeters}:${venues}:${foods}`;
 }
 
-async function searchOverpass(lat, lng, radiusMeters) {
-  const key = cacheKey(lat, lng, radiusMeters);
+async function searchOverpass(lat, lng, radiusMeters, selection) {
+  const key = cacheKey(lat, lng, radiusMeters, selection);
   const cached = searchCache.get(key);
   if (cached && cached.expires > Date.now()) {
     return cached.places;
   }
 
-  const query = buildOverpassQuery(lat, lng, radiusMeters);
+  const query = buildOverpassQuery(lat, lng, radiusMeters, selection);
   const response = await fetch(OVERPASS_URL, {
     method: "POST",
     headers: {
@@ -155,43 +303,14 @@ async function searchOverpass(lat, lng, radiusMeters) {
 
   const data = await response.json();
   const elements = Array.isArray(data.elements) ? data.elements : [];
-  const named = elements.filter((el) => el && el.tags && el.tags.name && elementCoords(el));
+  const named = elements.filter(
+    (el) => el && el.tags && el.tags.name && elementCoords(el) && elementMatchesSelection(el, selection)
+  );
   shuffleInPlace(named);
   const places = named.slice(0, MAX_POOL_SIZE).map((el) => formatPlace(el, lat, lng));
 
   searchCache.set(key, { expires: Date.now() + SEARCH_CACHE_TTL_MS, places });
   return places;
-}
-
-function loadBlacklistFromDisk() {
-  try {
-    if (!fs.existsSync(BLACKLIST_FILE)) return;
-    const raw = fs.readFileSync(BLACKLIST_FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return;
-    for (const [sessionId, ids] of Object.entries(parsed)) {
-      if (Array.isArray(ids)) {
-        blacklistBySession.set(sessionId, new Set(ids.filter((id) => typeof id === "string")));
-      }
-    }
-  } catch (err) {
-    console.warn("Could not load blacklist file:", err.message);
-  }
-}
-
-function persistBlacklist() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    const obj = {};
-    for (const [sessionId, ids] of blacklistBySession.entries()) {
-      obj[sessionId] = Array.from(ids);
-    }
-    fs.writeFileSync(BLACKLIST_FILE, JSON.stringify(obj, null, 2), "utf8");
-  } catch (err) {
-    console.warn("Could not persist blacklist:", err.message);
-  }
 }
 
 function getSessionId(req) {
@@ -209,8 +328,6 @@ function getBlacklist(sessionId) {
   }
   return blacklistBySession.get(sessionId);
 }
-
-loadBlacklistFromDisk();
 
 const app = express();
 app.use(express.json());
@@ -245,20 +362,27 @@ app.get("/api/spin", async (req, res) => {
     });
   }
 
+  const selection = parseCategoryParam(req.query.categories);
+  if (selection.empty) {
+    return res.status(400).json({
+      error: "Select at least one category to spin.",
+    });
+  }
+
   const sessionId = getSessionId(req);
   const banned = getBlacklist(sessionId);
   const radiusMeters = milesToMeters(radiusMiles);
 
   try {
-    const places = await searchOverpass(lat, lng, radiusMeters);
+    const places = await searchOverpass(lat, lng, radiusMeters, selection);
     const eligible = places.filter((p) => p && p.id && !banned.has(p.id));
 
     if (eligible.length === 0) {
       return res.status(404).json({
         error:
           banned.size > 0
-            ? "No restaurants left in this area after excluding banned places. Try a larger radius or clear bans by refreshing the session."
-            : "No restaurants found near this location for the selected radius. Try a larger radius or different location.",
+            ? "No places left in this area after skips. Try a larger radius, more categories, or close the browser to reset skips."
+            : "No places found near this location for the selected radius and categories. Try a larger radius or more categories.",
         bannedCount: banned.size,
       });
     }
@@ -286,7 +410,6 @@ app.post("/api/blacklist", (req, res) => {
 
   const set = getBlacklist(sessionId);
   set.add(businessId.trim());
-  persistBlacklist();
 
   return res.json({ ok: true, count: set.size });
 });
@@ -303,8 +426,10 @@ module.exports = {
   haversineMeters,
   formatPlace,
   buildOverpassQuery,
+  parseCategoryParam,
+  cuisineMatchesFoods,
+  ALL_CATEGORY_IDS,
+  osmImageUrl,
   getBlacklist,
   blacklistBySession,
-  loadBlacklistFromDisk,
-  persistBlacklist,
 };

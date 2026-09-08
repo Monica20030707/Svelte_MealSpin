@@ -17,7 +17,7 @@
     <header class="brand">
       <p class="brand-mark">Meal Spin</p>
       <h1 class="tagline">Spin for lunch nearby</h1>
-      <p class="lede">Pick a radius, spin the roulette, then open Maps — or ban it and spin again.</p>
+      <p class="lede">Pick what sounds good, spin, then swipe left to skip or right to go.</p>
     </header>
 
     <section class="controls" aria-label="Location and spin controls">
@@ -30,6 +30,28 @@
           <option value="25">25 miles</option>
         </select>
       </div>
+
+      <fieldset class="category-fieldset">
+        <legend>What should we recommend?</legend>
+        <div class="category-grid" id="category-grid">
+          <label class="category-chip"><input type="checkbox" name="category" value="restaurant" checked /> <span aria-hidden="true">🍽️</span> Restaurant</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="cafe" checked /> <span aria-hidden="true">☕</span> Cafe</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="fast_food" checked /> <span aria-hidden="true">🍟</span> Fast food</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="pizza" checked /> <span aria-hidden="true">🍕</span> Pizza</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="sushi" checked /> <span aria-hidden="true">🍣</span> Sushi</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="mexican" checked /> <span aria-hidden="true">🌮</span> Mexican</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="vietnamese" checked /> <span aria-hidden="true">🍜</span> Vietnamese</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="chinese" checked /> <span aria-hidden="true">🥡</span> Chinese</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="thai" checked /> <span aria-hidden="true">🍛</span> Thai</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="indian" checked /> <span aria-hidden="true">🥘</span> Indian</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="korean" checked /> <span aria-hidden="true">🍱</span> Korean</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="japanese" checked /> <span aria-hidden="true">🍙</span> Japanese</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="italian" checked /> <span aria-hidden="true">🍝</span> Italian</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="burgers" checked /> <span aria-hidden="true">🍔</span> Burgers</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="sandwiches" checked /> <span aria-hidden="true">🥪</span> Sandwiches</label>
+          <label class="category-chip"><input type="checkbox" name="category" value="seafood" checked /> <span aria-hidden="true">🐟</span> Seafood</label>
+        </div>
+      </fieldset>
 
       <div class="location-block">
         <button type="button" id="locate-btn" class="btn btn-secondary">Use my location</button>
@@ -59,23 +81,31 @@
     <p id="error-msg" class="error" hidden role="alert"></p>
 
     <section id="result" class="result" hidden aria-live="polite">
-      <article class="result-card">
-        <div class="result-media" id="result-media" hidden>
-          <img id="result-image" alt="" />
+      <p class="swipe-hint" id="swipe-hint">Swipe left to skip · right to go</p>
+      <article class="result-card is-picking" id="result-card" tabindex="0" aria-label="Spin result. Swipe left to skip, right to pick.">
+        <div class="swipe-stamps" aria-hidden="true">
+          <span class="swipe-stamp swipe-stamp-skip">Skip</span>
+          <span class="swipe-stamp swipe-stamp-go">Let’s go</span>
         </div>
         <div class="result-body">
-          <p class="result-cuisine" id="result-cuisine"></p>
-          <h2 class="result-name" id="result-name"></h2>
+          <div class="result-heading">
+            <div class="result-media" id="result-media">
+              <img id="result-image" alt="" hidden />
+              <span id="result-initial" class="result-initial" aria-hidden="true"></span>
+            </div>
+            <div class="result-heading-text">
+              <p class="result-cuisine" id="result-cuisine"></p>
+              <h2 class="result-name" id="result-name"></h2>
+            </div>
+          </div>
           <div class="result-meta">
             <span id="result-rating" class="meta-pill" hidden></span>
             <span id="result-distance" class="meta-pill"></span>
             <span id="result-price" class="meta-pill" hidden></span>
           </div>
-          <p class="result-address" id="result-address"></p>
-          <div class="result-actions">
+          <div class="result-actions" id="result-actions" hidden>
             <a id="maps-google" class="btn btn-maps" href="#" target="_blank" rel="noopener noreferrer">Google Maps</a>
             <a id="maps-apple" class="btn btn-maps" href="#" target="_blank" rel="noopener noreferrer">Apple Maps</a>
-            <button type="button" id="ban-btn" class="btn btn-danger">Don’t recommend again</button>
           </div>
           <a id="place-link" class="place-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Website</a>
         </div>

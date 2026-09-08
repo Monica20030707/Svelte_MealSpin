@@ -110,6 +110,53 @@ body {
   animation: rise-in 0.65s 0.06s ease both;
 }
 
+.category-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.category-fieldset legend {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-muted);
+  padding: 0;
+  margin-bottom: 0.55rem;
+}
+
+.category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+}
+
+.category-chip input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.category-chip:has(input:not(:checked)) {
+  opacity: 0.45;
+  background: #eef2f3;
+}
+
 .field-row {
   display: flex;
   flex-direction: column;
@@ -262,17 +309,6 @@ input:focus {
   background: #1a343c;
 }
 
-.btn-danger {
-  background: var(--danger-bg);
-  color: var(--danger);
-  width: 100%;
-  border: 1px solid rgba(180, 35, 24, 0.18);
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #fde8e6;
-}
-
 .error {
   margin: 1rem 0 0;
   padding: 0.85rem 1rem;
@@ -288,15 +324,136 @@ input:focus {
   animation: rise-in 0.4s ease both;
 }
 
+.swipe-hint {
+  margin: 0 0 0.65rem;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(244, 247, 248, 0.78);
+}
+
 .result-card {
+  position: relative;
   background: var(--surface);
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow);
+  touch-action: pan-y;
+}
+
+.result-card.is-picking {
+  cursor: grab;
+}
+
+.result-card.is-picking:active {
+  cursor: grabbing;
+}
+
+.result-card.is-winner {
+  outline: 2px solid var(--highlight);
+}
+
+.swipe-stamps {
+  pointer-events: none;
+}
+
+.swipe-stamp {
+  position: absolute;
+  top: 1rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.swipe-stamp-skip {
+  left: 1rem;
+  color: var(--danger);
+  border: 2px solid var(--danger);
+  transform: rotate(-12deg);
+}
+
+.swipe-stamp-go {
+  right: 1rem;
+  color: var(--accent-deep);
+  border: 2px solid var(--accent-deep);
+  transform: rotate(12deg);
+}
+
+.result-card.is-skip-hint .swipe-stamp-skip,
+.result-card.is-go-hint .swipe-stamp-go {
+  opacity: 1;
+}
+
+.confetti-root {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  border-radius: 2px;
+  animation: confetti-fly 1.25s ease-out forwards;
+  animation-delay: var(--delay);
+}
+
+.confetti-piece.from-left {
+  left: -12px;
+}
+
+.confetti-piece.from-right {
+  right: -12px;
+}
+
+@keyframes confetti-fly {
+  from {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(var(--travel)) rotate(var(--spin));
+  }
+}
+
+.confetti-piece.from-right {
+  animation-name: confetti-fly-left;
+}
+
+@keyframes confetti-fly-left {
+  from {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--travel) * -1)) rotate(var(--spin));
+  }
+}
+
+.result-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.result-heading-text {
+  min-width: 0;
+  flex: 1;
 }
 
 .result-media {
-  aspect-ratio: 16 / 10;
+  flex: 0 0 4.5rem;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 0.75rem;
   overflow: hidden;
   background: var(--bg-2);
 }
@@ -306,6 +463,19 @@ input:focus {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.result-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #ecfff8;
+  background: #14806a;
 }
 
 .result-body {
@@ -347,12 +517,6 @@ input:focus {
   border-radius: 0.4rem;
   font-size: 0.85rem;
   font-weight: 600;
-}
-
-.result-address {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--ink-muted);
 }
 
 .result-actions {
@@ -420,8 +584,11 @@ input:focus {
     display: grid;
     grid-template-columns: 1fr 1fr;
   }
+}
 
-  .btn-danger {
-    grid-column: 1 / -1;
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece {
+    animation: none;
+    display: none;
   }
 }

@@ -9,13 +9,15 @@ npm install
 cp .env.example .env   # optional; PORT and Overpass URL overrides only
 ```
 
+Thumbnails come from OpenStreetMap `image` / Wikimedia tags when present. Otherwise the card shows the first letter of the name. No Google photo API.
+
 ## Run
 
 ```bash
 npm start
 ```
 
-Open `http://localhost:8080`. Spins query Overpass for restaurants, cafes, and fast food near the given coordinates.
+Open `http://localhost:8080`. Check what to recommend (all on by default), spin, then swipe the card left to skip or right to pick. Skips last for the browser session only. Maps links appear after you swipe right.
 
 ## Scripts
 

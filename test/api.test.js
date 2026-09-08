@@ -2,12 +2,15 @@
 
 const { describe, it, before, after } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("fs");
+const path = require("path");
 const {
   app,
   milesToMeters,
   haversineMeters,
   formatPlace,
   buildOverpassQuery,
+  parseCategoryParam,
 } = require("../server");
 
 describe("milesToMeters", () => {
@@ -54,6 +57,55 @@ describe("formatPlace", () => {
     assert.match(out.address, /1 Main St/);
     assert.equal(out.url, "https://example.com");
     assert.equal(out.rating, null);
+    assert.equal(out.imageUrl, "");
+  });
+
+  it("uses OSM image or Wikimedia file tags for the thumbnail", () => {
+    const withImage = formatPlace(
+      {
+        type: "node",
+        id: 1,
+        lat: 37.7,
+        lon: -122.4,
+        tags: { name: "Pix Cafe", image: "https://example.com/shop.jpg" },
+      },
+      37.7,
+      -122.4
+    );
+    assert.equal(withImage.imageUrl, "https://example.com/shop.jpg");
+
+    const withCommons = formatPlace(
+      {
+        type: "node",
+        id: 2,
+        lat: 37.7,
+        lon: -122.4,
+        tags: { name: "Wiki Cafe", wikimedia_commons: "File:Wiki Cafe.jpg" },
+      },
+      37.7,
+      -122.4
+    );
+    assert.equal(
+      withCommons.imageUrl,
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Wiki%20Cafe.jpg?width=400"
+    );
+  });
+});
+
+describe("parseCategoryParam", () => {
+  it("defaults to every venue and food", () => {
+    const all = parseCategoryParam("");
+    assert.equal(all.empty, false);
+    assert.equal(all.allFoods, true);
+    assert.ok(all.venues.has("restaurant"));
+  });
+
+  it("treats pizza-only as all venues with a food filter", () => {
+    const pizza = parseCategoryParam("pizza");
+    assert.equal(pizza.allFoods, false);
+    assert.ok(pizza.foods.has("pizza"));
+    assert.ok(pizza.venues.has("restaurant"));
+    assert.ok(pizza.venues.has("cafe"));
   });
 });
 
@@ -62,6 +114,13 @@ describe("buildOverpassQuery", () => {
     const q = buildOverpassQuery(37.77, -122.42, 8047);
     assert.match(q, /amenity"="restaurant/);
     assert.match(q, /around:8047,37.77,-122.42/);
+    assert.doesNotMatch(q, /cuisine/);
+  });
+
+  it("adds a cuisine constraint when foods are narrowed", () => {
+    const q = buildOverpassQuery(37.77, -122.42, 8047, parseCategoryParam("pizza"));
+    assert.match(q, /cuisine"~"pizza"/);
+    assert.match(q, /amenity"="restaurant/);
   });
 });
 
@@ -103,7 +162,7 @@ describe("HTTP endpoints", () => {
     assert.ok(data.error);
   });
 
-  it("GET /api/spin maps Overpass results without an API key", async () => {
+  it("GET /api/spin maps Overpass results", async () => {
     globalThis.fetch = async (url, options) => {
       if (typeof url === "string" && url.includes("127.0.0.1")) {
         return originalFetch(url, options);
@@ -135,6 +194,84 @@ describe("HTTP endpoints", () => {
     assert.equal(data.name, "Spin Diner");
     assert.equal(data.id, "node/99");
     assert.ok(data.categories.includes("Thai"));
+    assert.equal(data.imageUrl, "");
+  });
+
+  it("GET /api/spin uses the OSM image tag when present", async () => {
+    globalThis.fetch = async (url, options) => {
+      if (typeof url === "string" && url.includes("127.0.0.1")) {
+        return originalFetch(url, options);
+      }
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            elements: [
+              {
+                type: "node",
+                id: 42,
+                lat: 37.775,
+                lon: -122.419,
+                tags: {
+                  name: "Photo Cafe",
+                  amenity: "cafe",
+                  image: "https://example.com/cafe.jpg",
+                },
+              },
+            ],
+          };
+        },
+      };
+    };
+
+    const res = await fetch(
+      `http://127.0.0.1:${port}/api/spin?lat=37.77&lng=-122.42&radiusMiles=5&sessionId=test-photo`
+    );
+    const data = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(data.name, "Photo Cafe");
+    assert.equal(data.imageUrl, "https://example.com/cafe.jpg");
+  });
+
+  it("GET /api/spin keeps only places matching a food category", async () => {
+    globalThis.fetch = async (url, options) => {
+      if (typeof url === "string" && url.includes("127.0.0.1")) {
+        return originalFetch(url, options);
+      }
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            elements: [
+              {
+                type: "node",
+                id: 1,
+                lat: 37.775,
+                lon: -122.419,
+                tags: { name: "Thai Place", amenity: "restaurant", cuisine: "thai" },
+              },
+              {
+                type: "node",
+                id: 2,
+                lat: 37.776,
+                lon: -122.418,
+                tags: { name: "Slice Shop", amenity: "restaurant", cuisine: "pizza" },
+              },
+            ],
+          };
+        },
+      };
+    };
+
+    const res = await fetch(
+      `http://127.0.0.1:${port}/api/spin?lat=37.77&lng=-122.42&radiusMiles=10&sessionId=test-pizza&categories=pizza`
+    );
+    const data = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(data.name, "Slice Shop");
+    assert.equal(data.id, "node/2");
   });
 
   it("POST /api/blacklist adds an id", async () => {
@@ -147,5 +284,19 @@ describe("HTTP endpoints", () => {
     assert.equal(res.status, 200);
     assert.equal(data.ok, true);
     assert.ok(data.count >= 1);
+  });
+
+  it("POST /api/blacklist does not write data/blacklist.json", async () => {
+    const file = path.join(__dirname, "../data/blacklist.json");
+    const before = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    const res = await fetch(`http://127.0.0.1:${port}/api/blacklist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: "disk-should-not-update", businessId: "node/no-disk" }),
+    });
+    assert.equal(res.status, 200);
+    const after = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    assert.equal(after, before);
+    assert.ok(!after.includes("node/no-disk"));
   });
 });
