@@ -334,7 +334,43 @@ input:focus {
 
 .result {
   margin-top: 1.25rem;
+  padding-right: 2.75rem;
+  overflow: visible;
   animation: rise-in 0.4s ease both;
+}
+
+.card-stack {
+  position: relative;
+  isolation: isolate;
+}
+
+.blank-card {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 14px 30px rgba(3, 18, 24, 0.2);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.35s ease;
+}
+
+.blank-1 {
+  z-index: 1;
+  transform: scale(0.92) translate(22px, -8px) rotate(2deg);
+}
+
+.blank-2 {
+  z-index: 0;
+  transform: scale(0.86) translate(38px, 4px) rotate(4deg);
+}
+
+.blank-3 {
+  z-index: -1;
+  transform: scale(0.8) translate(52px, 14px) rotate(7deg);
+}
+
+.blank-card.is-hidden {
+  opacity: 0;
 }
 
 .swipe-hint {
@@ -347,6 +383,7 @@ input:focus {
 
 .result-card {
   position: relative;
+  z-index: 4;
   background: var(--surface);
   border-radius: var(--radius);
   overflow: hidden;

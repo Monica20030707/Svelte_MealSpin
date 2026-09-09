@@ -332,11 +332,11 @@ function getBlacklist(sessionId) {
 const app = express();
 app.use(express.json());
 
-const publicDir = path.join(__dirname, "public");
-app.use(express.static(publicDir));
+const clientDir = path.join(__dirname, "dist");
+app.use(express.static(clientDir));
 
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(publicDir, "index.html"));
+  res.sendFile(path.join(clientDir, "index.html"));
 });
 
 app.get("/api/spin", async (req, res) => {

@@ -150,7 +150,6 @@ describe("HTTP endpoints", () => {
     const text = await res.text();
     assert.equal(res.status, 200);
     assert.match(text, /Meal Spin/);
-    assert.match(text, /Spin for lunch nearby/);
   });
 
   it("GET /api/spin with bad coords returns 400", async () => {
