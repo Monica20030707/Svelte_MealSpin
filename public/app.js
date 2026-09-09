@@ -192,8 +192,8 @@
       const fromLeft = i % 2 === 0;
       piece.className = `confetti-piece ${fromLeft ? "from-left" : "from-right"}`;
       piece.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
-      piece.style.top = `${8 + Math.random() * 84}vh`;
-      piece.style.setProperty("--travel", `${42 + Math.random() * 38}vw`);
+      piece.style.setProperty("--travel", `${48 + Math.random() * 42}vh`);
+      piece.style.setProperty("--drift", `${8 + Math.random() * 28}vw`);
       piece.style.setProperty("--spin", `${(Math.random() * 720 - 360).toFixed(0)}deg`);
       piece.style.setProperty("--delay", `${(Math.random() * 0.18).toFixed(2)}s`);
       piece.style.width = `${6 + Math.random() * 8}px`;

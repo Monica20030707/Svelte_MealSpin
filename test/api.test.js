@@ -288,15 +288,12 @@ describe("HTTP endpoints", () => {
 
   it("POST /api/blacklist does not write data/blacklist.json", async () => {
     const file = path.join(__dirname, "../data/blacklist.json");
-    const before = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
     const res = await fetch(`http://127.0.0.1:${port}/api/blacklist`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId: "disk-should-not-update", businessId: "node/no-disk" }),
     });
     assert.equal(res.status, 200);
-    const after = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
-    assert.equal(after, before);
-    assert.ok(!after.includes("node/no-disk"));
+    assert.equal(fs.existsSync(file), false);
   });
 });

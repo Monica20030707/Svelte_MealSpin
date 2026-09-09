@@ -126,6 +126,19 @@ body {
   margin-bottom: 0.55rem;
 }
 
+.category-group-label {
+  margin: 0.7rem 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+.category-group-label:first-of-type {
+  margin-top: 0;
+}
+
 .category-grid {
   display: flex;
   flex-wrap: wrap;
@@ -399,42 +412,40 @@ input:focus {
 
 .confetti-piece {
   position: absolute;
+  bottom: -8px;
   border-radius: 2px;
-  animation: confetti-fly 1.25s ease-out forwards;
+  animation: confetti-up-right 1.35s ease-out forwards;
   animation-delay: var(--delay);
 }
 
 .confetti-piece.from-left {
-  left: -12px;
+  left: 3vw;
 }
 
 .confetti-piece.from-right {
-  right: -12px;
+  right: 3vw;
+  animation-name: confetti-up-left;
 }
 
-@keyframes confetti-fly {
+@keyframes confetti-up-right {
   from {
     opacity: 1;
-    transform: translateX(0) rotate(0deg);
+    transform: translate(0, 0) rotate(0deg);
   }
   to {
     opacity: 0;
-    transform: translateX(var(--travel)) rotate(var(--spin));
+    transform: translate(var(--drift), calc(var(--travel) * -1)) rotate(var(--spin));
   }
 }
 
-.confetti-piece.from-right {
-  animation-name: confetti-fly-left;
-}
-
-@keyframes confetti-fly-left {
+@keyframes confetti-up-left {
   from {
     opacity: 1;
-    transform: translateX(0) rotate(0deg);
+    transform: translate(0, 0) rotate(0deg);
   }
   to {
     opacity: 0;
-    transform: translateX(calc(var(--travel) * -1)) rotate(var(--spin));
+    transform: translate(calc(var(--drift) * -1), calc(var(--travel) * -1)) rotate(var(--spin));
   }
 }
 
