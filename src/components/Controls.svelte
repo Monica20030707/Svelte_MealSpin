@@ -12,6 +12,7 @@
     lng = $bindable(""),
     spinning,
     canSpin,
+    updateMode = false,
     onlocate,
     onmanual,
     onspin,
@@ -42,7 +43,7 @@
   />
 
   <button type="button" class="btn btn-primary" class:is-spinning={spinning} disabled={!canSpin} onclick={onspin}>
-    <span aria-hidden="true">🔮</span>
-    Show me the place
+    <span aria-hidden="true">{updateMode ? "✨" : "🔮"}</span>
+    {updateMode ? "Update" : "Show me the place"}
   </button>
 </section>

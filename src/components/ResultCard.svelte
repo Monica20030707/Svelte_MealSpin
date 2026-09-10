@@ -1,4 +1,5 @@
 <script>
+  import { iconForCategories } from "../lib/categories.js";
   import { formatDistance, formatRating, mapsLinks } from "../lib/format.js";
 
   let { place, state = "picking", imageFailed = $bindable(false) } = $props();
@@ -8,15 +9,17 @@
       ? place.categories.slice(0, 3).join(" · ")
       : "Restaurant"
   );
-  const letter = $derived((place.name || "?").trim().charAt(0).toUpperCase() || "?");
+  const cuisineIcon = $derived(iconForCategories(place.categories));
   const links = $derived(mapsLinks(place));
   const showImage = $derived(Boolean(place.imageUrl) && !imageFailed);
 </script>
 
-<div class="swipe-stamps" aria-hidden="true">
-  <span class="swipe-stamp swipe-stamp-skip">Skip</span>
-  <span class="swipe-stamp swipe-stamp-go">Let’s go</span>
-</div>
+{#if state !== "winner"}
+  <div class="swipe-stamps" aria-hidden="true">
+    <span class="swipe-stamp swipe-stamp-skip">Skip</span>
+    <span class="swipe-stamp swipe-stamp-go">Let’s go</span>
+  </div>
+{/if}
 <div class="result-body">
   <div class="result-heading">
     <div class="result-media">
@@ -29,7 +32,7 @@
           }}
         />
       {:else}
-        <span class="result-initial" aria-hidden="true">{letter}</span>
+        <span class="result-icon" aria-hidden="true">{cuisineIcon}</span>
       {/if}
     </div>
     <div class="result-heading-text">

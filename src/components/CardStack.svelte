@@ -56,11 +56,7 @@
     }
 
     if (accept) {
-      if (cardEl) {
-        cardEl.style.transition = "transform 0.22s ease";
-        cardEl.style.transform = "translateX(140%) rotate(18deg)";
-      }
-      window.setTimeout(() => onaccept?.(), prefersReducedMotion() ? 0 : 180);
+      onaccept?.();
       return;
     }
 
