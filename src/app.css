@@ -855,14 +855,16 @@ input:focus {
 
   .shell.is-picking .workspace {
     display: grid;
-    grid-template-columns: minmax(16.5rem, 20rem) minmax(0, 1fr);
-    gap: 2.25rem;
+    grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+    gap: 1.15rem;
     align-items: start;
   }
 
   .shell.is-picking .options {
     position: sticky;
     top: 1.25rem;
+    justify-self: end;
+    width: min(100%, 20rem);
     max-height: calc(100dvh - 2.5rem);
     overflow: auto;
   }
@@ -870,7 +872,7 @@ input:focus {
   .shell.is-picking .stage {
     order: 0;
     min-height: calc(100dvh - 4rem);
-    padding: 1rem 2.5rem 2rem 1rem;
+    padding: 1rem 2.5rem 2rem 0.25rem;
   }
 
   .shell.is-picking .result {

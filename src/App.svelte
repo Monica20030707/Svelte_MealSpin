@@ -3,7 +3,7 @@
   import Controls from "./components/Controls.svelte";
   import CardStack from "./components/CardStack.svelte";
   import WinnerScreen from "./components/WinnerScreen.svelte";
-  import { ALL_CATEGORY_IDS } from "./lib/categories.js";
+  import { ALL_CATEGORY_IDS, foodTypesFromCategories, shouldAvoidRepeatType } from "./lib/categories.js";
   import { fetchSpin, skipPlace } from "./lib/api.js";
   import { getSessionId } from "./lib/session.js";
 
@@ -149,7 +149,7 @@
     setLocation(nextLat, nextLng, `Manual location: ${nextLat.toFixed(4)}, ${nextLng.toFixed(4)}`);
   }
 
-  async function spin() {
+  async function spin(avoidTypes = []) {
     if (!coords || spinning) return;
     if (selected.length === 0) {
       setError("Check at least one category, then spin.");
@@ -165,6 +165,7 @@
         lng: coords.lng,
         radiusMiles: radius,
         categories: selected,
+        avoidTypes,
       });
       place = next;
       cardState = "picking";
@@ -178,12 +179,15 @@
 
   async function skipAndRespin() {
     if (!place?.id || spinning) return;
+    const avoidTypes = shouldAvoidRepeatType(selected)
+      ? foodTypesFromCategories(place.categories)
+      : [];
     spinning = true;
     setError("");
     try {
       await skipPlace(place.id);
       spinning = false;
-      await spin();
+      await spin(avoidTypes);
     } catch (err) {
       setError(err.message || "Could not skip and re-spin.");
       spinning = false;
@@ -210,9 +214,9 @@
     { icon: "🥗", top: "34%", left: "80%", size: "4.3rem", delay: "0.55s" },
     { icon: "🍩", top: "42%", left: "2%", size: "4.6rem", delay: "0.15s" },
     { icon: "🥟", top: "48%", left: "91%", size: "4.4rem", delay: "0.45s" },
-    { icon: "🍦", top: "58%", left: "8%", size: "4.5rem", delay: "0.25s" },
+    { icon: "🍦", top: "58%", left: "10%", size: "4.5rem", delay: "0.25s" },
     { icon: "🍟", top: "63%", left: "78%", size: "4.8rem", delay: "0.05s" },
-    { icon: "🍛", top: "72%", left: "4%", size: "4.6rem", delay: "0.5s" },
+    { icon: "🍛", top: "76%", left: "4%", size: "4.6rem", delay: "0.5s" },
     { icon: "🍱", top: "76%", left: "86%", size: "4.3rem", delay: "0.3s" },
     { icon: "🥑", top: "84%", left: "18%", size: "4.5rem", delay: "0.2s" },
     { icon: "🍪", top: "88%", left: "62%", size: "4.4rem", delay: "0.4s" },

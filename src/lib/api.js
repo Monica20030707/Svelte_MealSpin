@@ -1,6 +1,6 @@
 import { getSessionId } from "./session.js";
 
-export async function fetchSpin({ lat, lng, radiusMiles, categories }) {
+export async function fetchSpin({ lat, lng, radiusMiles, categories, avoidTypes = [] }) {
   const params = new URLSearchParams({
     lat: String(lat),
     lng: String(lng),
@@ -8,6 +8,9 @@ export async function fetchSpin({ lat, lng, radiusMiles, categories }) {
     sessionId: getSessionId(),
     categories: categories.join(","),
   });
+  if (avoidTypes.length) {
+    params.set("avoidTypes", avoidTypes.join(","));
+  }
 
   const res = await fetch(`/api/spin?${params}`, {
     headers: { "X-Session-Id": getSessionId() },

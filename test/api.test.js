@@ -273,6 +273,45 @@ describe("HTTP endpoints", () => {
     assert.equal(data.id, "node/2");
   });
 
+  it("GET /api/spin skips the avoided food type when another type exists", async () => {
+    globalThis.fetch = async (url, options) => {
+      if (typeof url === "string" && url.includes("127.0.0.1")) {
+        return originalFetch(url, options);
+      }
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            elements: [
+              {
+                type: "node",
+                id: 11,
+                lat: 37.775,
+                lon: -122.419,
+                tags: { name: "Thai Place", amenity: "restaurant", cuisine: "thai" },
+              },
+              {
+                type: "node",
+                id: 12,
+                lat: 37.776,
+                lon: -122.418,
+                tags: { name: "Slice Shop", amenity: "restaurant", cuisine: "pizza" },
+              },
+            ],
+          };
+        },
+      };
+    };
+
+    const res = await fetch(
+      `http://127.0.0.1:${port}/api/spin?lat=37.77&lng=-122.42&radiusMiles=10&sessionId=avoid-thai&categories=pizza,thai&avoidTypes=thai`
+    );
+    const data = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(data.name, "Slice Shop");
+  });
+
   it("POST /api/blacklist adds an id", async () => {
     const res = await fetch(`http://127.0.0.1:${port}/api/blacklist`, {
       method: "POST",

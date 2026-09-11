@@ -269,6 +269,22 @@ function shuffleInPlace(items) {
   return items;
 }
 
+function parseAvoidTypes(raw) {
+  if (raw == null || String(raw).trim() === "") return [];
+  return String(raw)
+    .split(",")
+    .map((s) => s.trim())
+    .filter((id) => ALL_CATEGORY_IDS.includes(id));
+}
+
+function placeFoodTypes(place) {
+  const cats = Array.isArray(place.categories) ? place.categories : [];
+  const joined = cats.join(";");
+  const foods = FOOD_IDS.filter((id) => cuisineMatchesFoods(joined, [id]));
+  if (foods.length) return foods;
+  return VENUE_IDS.filter((id) => cats.some((label) => String(label).toLowerCase() === amenityLabel(id).toLowerCase()));
+}
+
 function cacheKey(lat, lng, radiusMeters, selection) {
   const venues = [...selection.venues].sort().join("+");
   const foods = selection.allFoods ? "*" : [...selection.foods].sort().join("+");
@@ -375,7 +391,14 @@ app.get("/api/spin", async (req, res) => {
 
   try {
     const places = await searchOverpass(lat, lng, radiusMeters, selection);
-    const eligible = places.filter((p) => p && p.id && !banned.has(p.id));
+    const avoidTypes = new Set(parseAvoidTypes(req.query.avoidTypes));
+    let eligible = places.filter((p) => p && p.id && !banned.has(p.id));
+    if (avoidTypes.size > 0) {
+      const varied = eligible.filter(
+        (p) => !placeFoodTypes(p).some((type) => avoidTypes.has(type))
+      );
+      if (varied.length > 0) eligible = varied;
+    }
 
     if (eligible.length === 0) {
       return res.status(404).json({
@@ -427,6 +450,7 @@ module.exports = {
   formatPlace,
   buildOverpassQuery,
   parseCategoryParam,
+  placeFoodTypes,
   cuisineMatchesFoods,
   ALL_CATEGORY_IDS,
   osmImageUrl,
