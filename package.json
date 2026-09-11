@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "prestart": "vite build",
     "dev": "vite",
     "build": "vite build",
     "pretest": "vite build",

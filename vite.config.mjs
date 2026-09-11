@@ -19,6 +19,15 @@ export default defineConfig({
           next();
         });
       },
+      configurePreviewServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url && req.url.startsWith("/api")) {
+            app(req, res, next);
+            return;
+          }
+          next();
+        });
+      },
     },
   ],
   build: {

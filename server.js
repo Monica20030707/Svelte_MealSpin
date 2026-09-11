@@ -392,11 +392,6 @@ const app = express();
 app.use(express.json());
 
 const clientDir = path.join(__dirname, "dist");
-app.use(express.static(clientDir));
-
-app.get("/", (_req, res) => {
-  res.sendFile(path.join(clientDir, "index.html"));
-});
 
 app.get("/api/spin", async (req, res) => {
   const lat = Number(req.query.lat);
@@ -478,6 +473,12 @@ app.post("/api/blacklist", (req, res) => {
   set.add(businessId.trim());
 
   return res.json({ ok: true, count: set.size });
+});
+
+app.use(express.static(clientDir));
+
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(clientDir, "index.html"));
 });
 
 if (require.main === module) {

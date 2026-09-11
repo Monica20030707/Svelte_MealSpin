@@ -1,4 +1,22 @@
 import { getSessionId } from "./session.js";
+import { addLocalSkip, spinFromOverpass } from "./overpass.js";
+
+async function tryServerSpin(params) {
+  const res = await fetch(`/api/spin?${params}`, {
+    headers: { "X-Session-Id": getSessionId() },
+  });
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error("static-host");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const error = new Error(data.error || `Spin failed (${res.status})`);
+    error.status = res.status;
+    throw error;
+  }
+  return data;
+}
 
 export async function fetchSpin({ lat, lng, radiusMiles, categories, avoidTypes = [] }) {
   const params = new URLSearchParams({
@@ -12,31 +30,39 @@ export async function fetchSpin({ lat, lng, radiusMiles, categories, avoidTypes 
     params.set("avoidTypes", avoidTypes.join(","));
   }
 
-  const res = await fetch(`/api/spin?${params}`, {
-    headers: { "X-Session-Id": getSessionId() },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || `Spin failed (${res.status})`);
+  try {
+    return await tryServerSpin(params);
+  } catch (err) {
+    const status = err && err.status;
+    if (status === 400 || status === 404) throw err;
+    return spinFromOverpass({ lat, lng, radiusMiles, categories, avoidTypes });
   }
-  return data;
 }
 
 export async function skipPlace(businessId) {
-  const res = await fetch("/api/blacklist", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Session-Id": getSessionId(),
-    },
-    body: JSON.stringify({
-      sessionId: getSessionId(),
-      businessId,
-    }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || "Could not skip this place.");
+  addLocalSkip(businessId);
+  try {
+    const res = await fetch("/api/blacklist", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Id": getSessionId(),
+      },
+      body: JSON.stringify({
+        sessionId: getSessionId(),
+        businessId,
+      }),
+    });
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      return { ok: true };
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || "Could not skip this place.");
+    }
+    return data;
+  } catch {
+    return { ok: true };
   }
-  return data;
 }
