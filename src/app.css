@@ -9,11 +9,12 @@
   --accent-deep: #14806a;
   --accent-soft: #d8f5ec;
   --highlight: #c8f542;
+  --paprika: #ff6b4a;
   --danger: #b42318;
   --danger-bg: #fef3f2;
   --line: rgba(16, 32, 39, 0.12);
   --shadow: 0 20px 44px rgba(3, 18, 24, 0.45);
-  --radius: 1.15rem;
+  --radius: 1.35rem;
   --font-display: "Bricolage Grotesque", "Avenir Next", sans-serif;
   --font-body: "Figtree", "Avenir Next", system-ui, sans-serif;
   --max: 28rem;
@@ -44,10 +45,32 @@ body {
   z-index: 0;
   background:
     radial-gradient(ellipse 85% 55% at 15% 0%, #1faa8a55 0%, transparent 55%),
+    radial-gradient(ellipse 55% 40% at 88% 8%, #ff6b4a33 0%, transparent 50%),
     radial-gradient(ellipse 70% 45% at 95% 15%, #c8f54233 0%, transparent 50%),
     radial-gradient(ellipse 80% 50% at 50% 100%, #06141a 0%, transparent 55%),
     linear-gradient(160deg, var(--bg-1) 0%, var(--bg-0) 50%, #030a0d 100%);
   pointer-events: none;
+}
+
+.food-sprinkles {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.food-sprinkles span {
+  position: absolute;
+  font-size: 4.6rem;
+  opacity: 0.32;
+  filter: blur(0.2px);
+  animation: sprinkle-float 3.1s ease-in-out infinite;
+}
+
+.food-sprinkles span.wobble-b {
+  animation-name: sprinkle-wobble;
+  animation-duration: 2.6s;
 }
 
 .bg-atmosphere::after {
@@ -87,6 +110,21 @@ body {
   animation: rise-in 0.55s ease both;
 }
 
+.brand-badge {
+  display: inline-block;
+  margin: 0 0 0.65rem;
+  padding: 0.22rem 0.7rem;
+  border: 2px solid var(--highlight);
+  border-radius: 999px;
+  background: rgba(200, 245, 66, 0.12);
+  color: var(--highlight);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: rotate(-3deg);
+}
+
 .brand-mark {
   margin: 0 0 0.35rem;
   font-family: var(--font-display);
@@ -100,10 +138,11 @@ body {
 
 .tagline {
   margin: 0 0 0.5rem;
-  font-family: var(--font-body);
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
   color: var(--highlight);
+  transform: rotate(-1deg);
 }
 
 .lede {
@@ -122,6 +161,7 @@ body {
   flex-direction: column;
   gap: 1rem;
   animation: rise-in 0.65s 0.06s ease both;
+  border: 2px dashed rgba(31, 170, 138, 0.38);
 }
 
 .category-fieldset {
@@ -163,15 +203,34 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--line);
+  padding: 0.38rem 0.65rem;
+  border: 2px solid #10202714;
   border-radius: 999px;
   background: #fff;
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink);
   cursor: pointer;
   user-select: none;
+  box-shadow: 0 2px 0 #10202712;
+  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+}
+
+.category-chip:nth-child(3n) {
+  transform: rotate(-2deg);
+}
+
+.category-chip:nth-child(3n + 1) {
+  transform: rotate(1.6deg);
+}
+
+.category-chip:has(input:checked) {
+  border-color: #1faa8a66;
+  background: #fff;
+}
+
+.category-chip:hover {
+  transform: rotate(-4deg) scale(1.06);
 }
 
 .category-chip input {
@@ -272,17 +331,17 @@ input:focus {
   min-height: 2.85rem;
   padding: 0.65rem 1.1rem;
   border: none;
-  border-radius: 0.75rem;
+  border-radius: 999px;
   font: inherit;
   font-weight: 700;
   font-size: 1rem;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
 .btn:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: translateY(2px);
 }
 
 .btn:disabled {
@@ -291,15 +350,16 @@ input:focus {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--highlight);
   color: #04221c;
   width: 100%;
   font-size: 1.1rem;
   letter-spacing: 0.01em;
+  box-shadow: 0 4px 0 #8aa61f;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #26c49f;
+  background: #d6ff5a;
 }
 
 .btn-primary.is-spinning .spin-icon {
@@ -387,12 +447,42 @@ input:focus {
   opacity: 0;
 }
 
+.card-stack.is-cycling .blank-1 {
+  transform: scale(1) translate(0, 0) rotate(0deg);
+  z-index: 3;
+}
+
+.card-stack.is-cycling .blank-2 {
+  transform: scale(0.92) translate(22px, -8px) rotate(2deg);
+  z-index: 1;
+}
+
+.card-stack.is-cycling .blank-3 {
+  transform: scale(0.86) translate(38px, 4px) rotate(4deg);
+  z-index: 0;
+}
+
+.result-card.is-sending-back {
+  z-index: -1;
+  pointer-events: none;
+  transform: scale(0.8) translate(52px, 14px) rotate(7deg);
+  transition:
+    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    z-index 0s linear 0.16s;
+}
+
+.result-card.is-sending-back .result-body {
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
 .swipe-hint {
   margin: 0 0 0.65rem;
   text-align: center;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: rgba(244, 247, 248, 0.78);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: rgba(244, 247, 248, 0.86);
 }
 
 .result-card {
@@ -403,10 +493,23 @@ input:focus {
   overflow: hidden;
   box-shadow: var(--shadow);
   touch-action: pan-y;
+  border: 3px solid #fff;
 }
 
 .result-card.is-picking {
   cursor: grab;
+  animation: card-arrive 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes card-arrive {
+  from {
+    opacity: 0.65;
+    transform: scale(0.92) translate(22px, -8px) rotate(2deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .result-card.is-picking:active {
@@ -443,8 +546,9 @@ input:focus {
 
 .swipe-stamp-go {
   right: 1rem;
-  color: var(--accent-deep);
-  border: 2px solid var(--accent-deep);
+  color: #5a7a00;
+  border: 2px solid #5a7a00;
+  background: var(--highlight);
   transform: rotate(12deg);
 }
 
@@ -640,6 +744,26 @@ input:focus {
   }
   75% {
     transform: translateX(4px);
+  }
+}
+
+@keyframes sprinkle-float {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(14px, -22px) rotate(16deg);
+  }
+}
+
+@keyframes sprinkle-wobble {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(-16px, 18px) rotate(-18deg);
   }
 }
 
@@ -859,12 +983,17 @@ input:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .food-sprinkles span {
+    animation: none;
+  }
+
   .confetti-piece {
     animation: none;
     display: none;
   }
 
-  .winner-pop {
+  .winner-pop,
+  .result-card.is-picking {
     animation: none;
   }
 

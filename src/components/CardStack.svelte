@@ -12,11 +12,13 @@
   let hint = $state("");
   let imageFailed = $state(false);
   let drag = $state(null);
+  let sendingBack = $state(false);
 
   $effect(() => {
     place?.id;
     imageFailed = false;
     hint = "";
+    sendingBack = false;
     resetTransform();
   });
 
@@ -37,7 +39,7 @@
   }
 
   function finishSwipe(offsetX, velocityX = 0) {
-    if (mode !== "picking") {
+    if (mode !== "picking" || sendingBack) {
       resetTransform();
       return;
     }
@@ -47,11 +49,13 @@
     const accept = offsetX >= SWIPE_DISTANCE || power > SWIPE_CONFIDENCE;
 
     if (skip) {
+      sendingBack = true;
+      hint = "";
       if (cardEl) {
-        cardEl.style.transition = "transform 0.22s ease";
-        cardEl.style.transform = "translateX(-140%) rotate(-18deg)";
+        cardEl.style.transition = "";
+        cardEl.style.transform = "";
       }
-      window.setTimeout(() => onskip?.(), prefersReducedMotion() ? 0 : 180);
+      window.setTimeout(() => onskip?.(), prefersReducedMotion() ? 0 : 420);
       return;
     }
 
@@ -68,7 +72,7 @@
   }
 
   function onPointerDown(event) {
-    if (mode !== "picking" || spinning) return;
+    if (mode !== "picking" || spinning || sendingBack) return;
     if (event.target.closest("a, button")) return;
     drag = { pointerId: event.pointerId, startX: event.clientX, lastX: event.clientX, lastT: Date.now() };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -90,7 +94,7 @@
   }
 
   function onKeyDown(event) {
-    if (mode !== "picking" || spinning) return;
+    if (mode !== "picking" || spinning || sendingBack) return;
     if (event.key === "ArrowLeft") {
       event.preventDefault();
       finishSwipe(-SWIPE_DISTANCE, -800);
@@ -103,10 +107,10 @@
 
 <section class="result" class:is-winner={mode === "winner"} aria-live="polite">
   {#if mode === "picking"}
-    <p class="swipe-hint">Swipe left to skip · right to go</p>
+    <p class="swipe-hint">← nah · yum →</p>
   {/if}
 
-  <div class="card-stack">
+  <div class="card-stack" class:is-cycling={sendingBack}>
     {#each BLANKS as depth (depth)}
       <div class="blank-card blank-{depth}" class:is-hidden={mode === "winner"} aria-hidden="true"></div>
     {/each}
@@ -118,6 +122,7 @@
         class="result-card"
         class:is-picking={mode === "picking"}
         class:is-winner={mode === "winner"}
+        class:is-sending-back={sendingBack}
         class:is-skip-hint={hint === "skip"}
         class:is-go-hint={hint === "go"}
         role="group"

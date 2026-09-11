@@ -200,9 +200,41 @@
   function keepLooking() {
     cardState = "picking";
   }
+
+  const SPRINKLES = [
+    { icon: "🍕", top: "5%", left: "3%", size: "5.1rem", delay: "0s" },
+    { icon: "🍜", top: "12%", left: "22%", size: "4.4rem", delay: "0.2s" },
+    { icon: "🌮", top: "8%", left: "72%", size: "4.8rem", delay: "0.4s" },
+    { icon: "🍣", top: "16%", left: "88%", size: "4.5rem", delay: "0.1s" },
+    { icon: "🍔", top: "28%", left: "11%", size: "4.7rem", delay: "0.35s" },
+    { icon: "🥗", top: "34%", left: "80%", size: "4.3rem", delay: "0.55s" },
+    { icon: "🍩", top: "42%", left: "2%", size: "4.6rem", delay: "0.15s" },
+    { icon: "🥟", top: "48%", left: "91%", size: "4.4rem", delay: "0.45s" },
+    { icon: "🍦", top: "58%", left: "8%", size: "4.5rem", delay: "0.25s" },
+    { icon: "🍟", top: "63%", left: "78%", size: "4.8rem", delay: "0.05s" },
+    { icon: "🍛", top: "72%", left: "4%", size: "4.6rem", delay: "0.5s" },
+    { icon: "🍱", top: "76%", left: "86%", size: "4.3rem", delay: "0.3s" },
+    { icon: "🥑", top: "84%", left: "18%", size: "4.5rem", delay: "0.2s" },
+    { icon: "🍪", top: "88%", left: "62%", size: "4.4rem", delay: "0.4s" },
+    { icon: "🥐", top: "22%", left: "48%", size: "4.2rem", delay: "0.6s" },
+    { icon: "🍉", top: "68%", left: "42%", size: "4.3rem", delay: "0.18s" },
+    { icon: "🍤", top: "38%", left: "58%", size: "4.1rem", delay: "0.38s" },
+    { icon: "🍇", top: "52%", left: "28%", size: "4.2rem", delay: "0.48s" },
+  ];
 </script>
 
 <div class="bg-atmosphere" aria-hidden="true"></div>
+<div class="food-sprinkles" aria-hidden="true">
+  {#each SPRINKLES as bit, i (i)}
+    <span
+      class:wobble-b={i % 2 === 1}
+      style:top={bit.top}
+      style:left={bit.left}
+      style:font-size={bit.size}
+      style:animation-delay={bit.delay}
+    >{bit.icon}</span>
+  {/each}
+</div>
 
 <main class="shell" class:is-picking={Boolean(place)} class:is-dimmed={cardState === "winner"}>
   {#if !place}
