@@ -23,14 +23,14 @@ I want to build an app that is compatible to mobile view and computer view, usin
 
 ## Build plan
 
-1. Create package.json at the repo root with dependencies express and node-fetch (or undici), plus scripts: "start": "node server.js". No nested manifests.
-2. Create server.js at the repo root: Express app that listens on process.env.PORT (default 8080) bound to 0.0.0.0; serve static files from /public; respond 200 on GET / with index.html for health checks.
-3. Add GET /api/spin?lat=&lng=&radiusMiles= that reads YELP_API_KEY from the environment, calls Yelp Fusion /v3/businesses/search (term=restaurants, limit=50, radius converted to meters capped at 40000), filters out ids in an in-memory Set blacklist keyed by sessionId query/header, picks one business at random, returns { id, name, rating, categories, distance, address, lat, lng, url }.
-4. Add POST /api/blacklist with JSON { sessionId, businessId } that adds the id to that session’s Set (file-backed optional JSON under data/blacklist.json is fine); return { ok: true, count }. No external DB.
-5. Create public/index.html with a single responsive page branded Meal Spin: location request (navigator.geolocation or manual lat/lng fallback), radius <select> (5/10/15/25), Spin button, result card, Maps links (Google: https://www.google.com/maps/dir/?api=1&destination=lat,lng; Apple: https://maps.apple.com/?daddr=lat,lng), and Don’t recommend again.
-6. Create public/app.js that generates a sessionId (localStorage), calls /api/spin, renders the card, wires Maps buttons, and on ban POSTs /api/blacklist then immediately re-spins excluding that id; create public/styles.css with mobile-first layout (full-width card under ~640px, centered max-width on desktop).
-7. Wire error states in UI and API: missing location, Yelp empty after filters, missing YELP_API_KEY (JSON 503 with clear message). Ensure GET / always succeeds even if Yelp is misconfigured.
-8. Ready for the platform: install deps from root package.json, start with node server.js on PORT, and confirm GET / returns the app shell.
+1. Ensure package.json exists at the repo root (not nested) with dependencies express and node-fetch (or undici) and scripts: "start": "node server.js". Align any existing package.json to this root start entry.
+2. Ensure server.js at the repo root is the Express entry: listen on process.env.PORT (default 8080) at 0.0.0.0; mount static from /public; GET / must return 200 with public/index.html for health checks. Refactor any alternate entry or hardcoded port to this pattern.
+3. Keep or restore GET /api/spin?lat=&lng=&radiusMiles=&sessionId=: read YELP_API_KEY from the environment, call Yelp Fusion /v3/businesses/search (term=restaurants, limit=50, radius in meters capped at 40000), exclude ids in an in-memory Map of sessionId→Set (optionally hydrate from data/blacklist.json), pick one business at random, return { id, name, rating, categories, distance, address, lat, lng, url }.
+4. Keep or restore POST /api/blacklist with JSON { sessionId, businessId }: add the id to that session’s Set and optionally persist under data/blacklist.json; respond { ok: true, count }. No external DB.
+5. Align public/index.html to a single Meal Spin page: geolocation (or manual lat/lng fallback), radius <select> (5/10/15/25), Spin control, result card, Maps links (Google: https://www.google.com/maps/dir/?api=1&destination=lat,lng; Apple: https://maps.apple.com/?daddr=lat,lng), and Don’t recommend again. Drop stray pages/markup that fight this flow.
+6. Align public/app.js and public/styles.css: sessionId in localStorage; call /api/spin; render the card; wire Maps; on ban POST /api/blacklist then re-spin; mobile-first CSS (full-width under ~640px, centered max-width on desktop). Remove unused client modules that no longer match this UI.
+7. Unify error handling across UI and API: missing location, empty Yelp results after blacklist filters, missing YELP_API_KEY (JSON 503 with a clear message). GET / must still succeed when Yelp is misconfigured.
+8. Ready for the platform: root package.json install, start via node server.js on PORT, and GET / returns the Meal Spin shell.
 
 ## Scope tip
 
