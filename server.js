@@ -35,9 +35,14 @@ function loadEnvFiles() {
 loadEnvFiles();
 
 const PORT = Number(process.env.PORT) || 8080;
-const OVERPASS_URL =
-  process.env.OVERPASS_URL || "https://overpass-api.de/api/interpreter";
+const DEFAULT_OVERPASS_URLS = [
+  "https://overpass.private.coffee/api/interpreter",
+  "https://lz4.overpass-api.de/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
+];
+const OVERPASS_URLS = parseOverpassUrls(process.env.OVERPASS_URL);
 const USER_AGENT = process.env.OVERPASS_USER_AGENT || "MealSpin/1.0 (lunch roulette)";
+const OVERPASS_FETCH_MS = 12000;
 const MAX_RADIUS_METERS = 40000;
 const SEARCH_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_POOL_SIZE = 80;
@@ -66,6 +71,16 @@ const searchCache = new Map();
 
 /** @type {Map<string, Set<string>>} */
 const blacklistBySession = new Map();
+
+function parseOverpassUrls(raw) {
+  const fromEnv = String(raw || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (fromEnv.length === 0) return [...DEFAULT_OVERPASS_URLS];
+  const extras = DEFAULT_OVERPASS_URLS.filter((url) => !fromEnv.includes(url));
+  return [...fromEnv, ...extras];
+}
 
 function milesToMeters(miles) {
   return Math.min(Math.round(Number(miles) * 1609.344), MAX_RADIUS_METERS);
@@ -120,7 +135,8 @@ function formatAddress(tags) {
     tags["addr:state"],
     tags["addr:postcode"],
   ].filter(Boolean);
-  return parts.join(", ");
+  if (parts.length) return parts.join(", ");
+  return typeof tags["addr:full"] === "string" ? tags["addr:full"].trim() : "";
 }
 
 function firstHttpUrl(value) {
@@ -153,6 +169,14 @@ function osmImageUrl(tags) {
   );
 }
 
+function osmFlag(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "yes" || v === "only" || v === "designated") return "Yes";
+  if (v === "no") return "No";
+  if (v === "limited") return "Limited";
+  return "";
+}
+
 function formatPlace(element, originLat, originLng) {
   const tags = element.tags && typeof element.tags === "object" ? element.tags : {};
   const coords = elementCoords(element);
@@ -175,10 +199,14 @@ function formatPlace(element, originLat, originLng) {
     address: formatAddress(tags),
     lat: coords ? coords.lat : null,
     lng: coords ? coords.lng : null,
-    url: tags.website || tags["contact:website"] || "",
+    url: firstHttpUrl(tags.website) || firstHttpUrl(tags["contact:website"]) || "",
     imageUrl: osmImageUrl(tags),
     reviewCount: null,
     price: "",
+    phone: tags.phone || tags["contact:phone"] || tags["contact:mobile"] || "",
+    hours: tags.opening_hours || "",
+    delivery: osmFlag(tags.delivery),
+    wheelchair: osmFlag(tags.wheelchair),
   };
 }
 
@@ -299,25 +327,7 @@ async function searchOverpass(lat, lng, radiusMeters, selection) {
   }
 
   const query = buildOverpassQuery(lat, lng, radiusMeters, selection);
-  const response = await fetch(OVERPASS_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      Accept: "application/json",
-      "User-Agent": USER_AGENT,
-    },
-    body: new URLSearchParams({ data: query }).toString(),
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    const error = new Error(`Overpass API error (${response.status})`);
-    error.status = response.status;
-    error.detail = text;
-    throw error;
-  }
-
-  const data = await response.json();
+  const data = await fetchOverpassJson(query);
   const elements = Array.isArray(data.elements) ? data.elements : [];
   const named = elements.filter(
     (el) => el && el.tags && el.tags.name && elementCoords(el) && elementMatchesSelection(el, selection)
@@ -327,6 +337,39 @@ async function searchOverpass(lat, lng, radiusMeters, selection) {
 
   searchCache.set(key, { expires: Date.now() + SEARCH_CACHE_TTL_MS, places });
   return places;
+}
+
+async function fetchOverpassJson(query) {
+  const body = new URLSearchParams({ data: query }).toString();
+  const headers = {
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    Accept: "application/json",
+    "User-Agent": USER_AGENT,
+  };
+  let lastError = new Error("Overpass API error");
+
+  for (const url of OVERPASS_URLS) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body,
+        signal: AbortSignal.timeout(OVERPASS_FETCH_MS),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        lastError = new Error(`Overpass API error (${response.status})`);
+        lastError.status = response.status;
+        lastError.detail = text;
+        continue;
+      }
+      return await response.json();
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError;
 }
 
 function getSessionId(req) {
@@ -449,6 +492,7 @@ module.exports = {
   haversineMeters,
   formatPlace,
   buildOverpassQuery,
+  parseOverpassUrls,
   parseCategoryParam,
   placeFoodTypes,
   cuisineMatchesFoods,

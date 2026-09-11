@@ -11,6 +11,7 @@ const {
   formatPlace,
   buildOverpassQuery,
   parseCategoryParam,
+  parseOverpassUrls,
 } = require("../server");
 
 describe("milesToMeters", () => {
@@ -55,9 +56,45 @@ describe("formatPlace", () => {
     assert.equal(out.lat, 37.7);
     assert.equal(out.lng, -122.4);
     assert.match(out.address, /1 Main St/);
-    assert.equal(out.url, "https://example.com");
+    assert.equal(out.url, "https://example.com/");
     assert.equal(out.rating, null);
     assert.equal(out.imageUrl, "");
+    assert.equal(out.phone, "");
+    assert.equal(out.hours, "");
+    assert.equal(out.delivery, "");
+    assert.equal(out.wheelchair, "");
+  });
+
+  it("maps address, phone, website, hours, delivery, and wheelchair", () => {
+    const out = formatPlace(
+      {
+        type: "node",
+        id: 9,
+        lat: 37.7,
+        lon: -122.4,
+        tags: {
+          name: "Full Plate",
+          amenity: "restaurant",
+          phone: "+1 415 555 0100",
+          website: "https://fullplate.example",
+          opening_hours: "Mo-Fr 11:00-21:00; Sa-Su 12:00-22:00",
+          delivery: "yes",
+          wheelchair: "limited",
+          "addr:housenumber": "12",
+          "addr:street": "Market St",
+          "addr:city": "SF",
+        },
+      },
+      37.7,
+      -122.4
+    );
+
+    assert.match(out.address, /12 Market St/);
+    assert.equal(out.phone, "+1 415 555 0100");
+    assert.equal(out.url, "https://fullplate.example/");
+    assert.equal(out.hours, "Mo-Fr 11:00-21:00; Sa-Su 12:00-22:00");
+    assert.equal(out.delivery, "Yes");
+    assert.equal(out.wheelchair, "Limited");
   });
 
   it("uses OSM image or Wikimedia file tags for the thumbnail", () => {
@@ -106,6 +143,20 @@ describe("parseCategoryParam", () => {
     assert.ok(pizza.foods.has("pizza"));
     assert.ok(pizza.venues.has("restaurant"));
     assert.ok(pizza.venues.has("cafe"));
+  });
+});
+
+describe("parseOverpassUrls", () => {
+  it("uses faster public mirrors when OVERPASS_URL is unset", () => {
+    const urls = parseOverpassUrls("");
+    assert.equal(urls[0], "https://overpass.private.coffee/api/interpreter");
+    assert.ok(urls.includes("https://overpass-api.de/api/interpreter"));
+  });
+
+  it("puts a Deploy Genie URL first and keeps fallbacks", () => {
+    const urls = parseOverpassUrls("https://overpass.kumi.systems/api/interpreter");
+    assert.equal(urls[0], "https://overpass.kumi.systems/api/interpreter");
+    assert.ok(urls.includes("https://overpass.private.coffee/api/interpreter"));
   });
 });
 
@@ -194,6 +245,44 @@ describe("HTTP endpoints", () => {
     assert.equal(data.id, "node/99");
     assert.ok(data.categories.includes("Thai"));
     assert.equal(data.imageUrl, "");
+  });
+
+  it("GET /api/spin tries the next Overpass host after a 504", async () => {
+    let overpassCalls = 0;
+    globalThis.fetch = async (url, options) => {
+      if (typeof url === "string" && url.includes("127.0.0.1")) {
+        return originalFetch(url, options);
+      }
+      overpassCalls += 1;
+      if (overpassCalls === 1) {
+        return { ok: false, status: 504, async text() { return "gateway timeout"; } };
+      }
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            elements: [
+              {
+                type: "node",
+                id: 77,
+                lat: 37.785,
+                lon: -122.409,
+                tags: { name: "Fallback Bowl", amenity: "restaurant", cuisine: "vietnamese" },
+              },
+            ],
+          };
+        },
+      };
+    };
+
+    const res = await fetch(
+      `http://127.0.0.1:${port}/api/spin?lat=37.78&lng=-122.41&radiusMiles=5&sessionId=test-fallback`
+    );
+    const data = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(data.name, "Fallback Bowl");
+    assert.equal(overpassCalls, 2);
   });
 
   it("GET /api/spin uses the OSM image tag when present", async () => {

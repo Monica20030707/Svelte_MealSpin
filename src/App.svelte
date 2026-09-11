@@ -272,7 +272,7 @@
 
     {#if place}
       <section class="stage" aria-label="Restaurant deck">
-        <CardStack {place} mode="picking" {spinning} onskip={skipAndRespin} onaccept={acceptWinner} />
+        <CardStack {place} mode="picking" tucked={cardState === "winner"} {spinning} onskip={skipAndRespin} onaccept={acceptWinner} />
       </section>
     {/if}
   </div>

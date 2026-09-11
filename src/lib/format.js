@@ -12,6 +12,26 @@ export function formatRating(rating, reviewCount) {
   return `${stars} ★`;
 }
 
+export function formatHours(raw) {
+  if (!raw || typeof raw !== "string") return "";
+  return raw.replace(/;\s*/g, " · ");
+}
+
+export function phoneHref(phone) {
+  if (!phone || typeof phone !== "string") return "";
+  const compact = phone.replace(/[^\d+]/g, "");
+  return compact ? `tel:${compact}` : "";
+}
+
+export function websiteLabel(url) {
+  if (!url || typeof url !== "string") return "";
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") || url;
+  } catch {
+    return url.replace(/^https?:\/\//, "").replace(/^www\./, "");
+  }
+}
+
 export function mapsLinks(place) {
   const query = place.name || `${place.lat},${place.lng}`;
   const encodedQuery = encodeURIComponent(query);

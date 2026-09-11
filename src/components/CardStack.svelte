@@ -2,7 +2,7 @@
   import ResultCard from "./ResultCard.svelte";
   import { prefersReducedMotion } from "../lib/format.js";
 
-  let { place, mode = "picking", spinning = false, onskip, onaccept } = $props();
+  let { place, mode = "picking", spinning = false, tucked = false, onskip, onaccept } = $props();
 
   const SWIPE_DISTANCE = 96;
   const SWIPE_CONFIDENCE = 10000;
@@ -16,9 +16,10 @@
 
   $effect(() => {
     place?.id;
+    tucked;
     imageFailed = false;
     hint = "";
-    sendingBack = false;
+    if (!tucked) sendingBack = false;
     resetTransform();
   });
 
@@ -60,7 +61,13 @@
     }
 
     if (accept) {
-      onaccept?.();
+      sendingBack = true;
+      hint = "";
+      if (cardEl) {
+        cardEl.style.transition = "";
+        cardEl.style.transform = "";
+      }
+      window.setTimeout(() => onaccept?.(), prefersReducedMotion() ? 0 : 420);
       return;
     }
 
