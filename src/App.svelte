@@ -22,6 +22,7 @@
   let cardState = $state("picking");
   let confettiBurst = $state(0);
   let lastSpinKey = $state("");
+  let stageEl = $state(null);
 
   const canSpin = $derived(Boolean(coords) && !spinning && selected.length > 0);
   const filtersDirty = $derived(Boolean(place) && lastSpinKey !== "" && spinKey() !== lastSpinKey);
@@ -170,6 +171,7 @@
       place = next;
       cardState = "picking";
       lastSpinKey = spinKey();
+      revealCard();
     } catch (err) {
       setError(err.message || "Something went wrong while spinning.");
     } finally {
@@ -193,6 +195,19 @@
       spinning = false;
       cardState = "picking";
     }
+  }
+
+  function revealCard() {
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => {
+      if (stageEl) {
+        stageEl.scrollIntoView({ behavior: reduce ? "instant" : "smooth", block: "start" });
+        return;
+      }
+      window.scrollTo({ top: 0, behavior: reduce ? "instant" : "smooth" });
+    });
   }
 
   function acceptWinner() {
@@ -271,7 +286,7 @@
     </aside>
 
     {#if place}
-      <section class="stage" aria-label="Restaurant deck">
+      <section bind:this={stageEl} class="stage" aria-label="Restaurant deck">
         <CardStack {place} mode="picking" tucked={cardState === "winner"} {spinning} onskip={skipAndRespin} onaccept={acceptWinner} />
       </section>
     {/if}

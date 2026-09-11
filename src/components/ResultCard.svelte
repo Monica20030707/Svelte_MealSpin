@@ -22,8 +22,8 @@
 
 {#if state !== "winner"}
   <div class="swipe-stamps" aria-hidden="true">
-    <span class="swipe-stamp swipe-stamp-skip">Skip</span>
-    <span class="swipe-stamp swipe-stamp-go">Let’s go</span>
+    <span class="swipe-stamp swipe-stamp-skip">Not today</span>
+    <span class="swipe-stamp swipe-stamp-go">Let’s eat</span>
   </div>
 {/if}
 <div class="result-body">

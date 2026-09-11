@@ -114,7 +114,18 @@
 
 <section class="result" class:is-winner={mode === "winner"} aria-live="polite">
   {#if mode === "picking"}
-    <p class="swipe-hint">← nah · yum →</p>
+    <div class="swipe-coach">
+      <p class="visually-hidden">Swipe left for not today. Swipe right for let’s eat.</p>
+      <div class="swipe-demo" aria-hidden="true">
+        <span class="swipe-demo-nudge swipe-demo-nudge-left">←</span>
+        <span class="swipe-demo-hand">👆</span>
+        <span class="swipe-demo-nudge swipe-demo-nudge-right">→</span>
+      </div>
+      <p class="swipe-coach-copy" aria-hidden="true">
+        <span class="swipe-phrase swipe-phrase-left">Swipe left · Not today</span>
+        <span class="swipe-phrase swipe-phrase-right">Swipe right · Let’s eat</span>
+      </p>
+    </div>
   {/if}
 
   <div class="card-stack" class:is-cycling={sendingBack}>
@@ -134,7 +145,7 @@
         class:is-go-hint={hint === "go"}
         role="group"
         tabindex={mode === "picking" ? 0 : -1}
-        aria-label="Spin result. Swipe left to skip, right to pick."
+        aria-label="Spin result. Swipe left for not today, right for let’s eat."
         onpointerdown={onPointerDown}
         onpointermove={onPointerMove}
         onpointerup={onPointerUp}

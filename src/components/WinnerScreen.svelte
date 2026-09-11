@@ -14,6 +14,6 @@
     <div class="result-card is-winner">
       <ResultCard {place} state="winner" bind:imageFailed />
     </div>
-    <button type="button" class="winner-again" onclick={onagain}>Keep looking</button>
+    <button type="button" class="winner-again" onclick={onagain}>Go back, I changed my mind!</button>
   </div>
 </div>
